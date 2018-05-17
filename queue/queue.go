@@ -15,7 +15,11 @@ type RedisQueue struct {
     urlCacheCount    chan struct{}
     urlCache         chan string
 }
-func NewRedisQueue(cli redis.Conn,queuekey string) *RedisQueue {
+func NewRedisQueue(ip string,queuekey string) *RedisQueue {
+	 cli, err := redis.Dial("tcp", ip)
+     if err!= nil{
+		return nil
+     }
 	 q := &RedisQueue{
 	 	cli           :cli,
 	 	queuekey      :queuekey,

@@ -1,29 +1,46 @@
 package main
 
 import (
-	"fmt"
+	//"fmt"
 
 	"github.com/gocolly/colly"
 	"strings"
 	"./queue"
-	"github.com/gomodule/redigo/redis"
+	"./bloom"
 	"log"
+	"flag"
 )
 
+var(
+	serverip string
+)
+func init() {
+      flag.StringVar(&serverip, "server", "localhost:6379", "masternode")
+}
 func main() {
+	
+    flag.Parse()
+	log.SetFlags(log.Ldate | log.Ltime | log.LUTC | log.Lshortfile)
+
 	// Instantiate default collector
 	c := colly.NewCollector(
 		// Visit only domains: hackerspaces.org, wiki.hackerspaces.org
 		colly.AllowedDomains("gallerix.asia"),
 
 	)
-	//c := colly.NewCollector()
-    cli, err := redis.Dial("tcp", ":6379")
-    if err!= nil{
-		log.Fatal(err)
+ 
+  
+    q:= queue.NewRedisQueue(serverip,"galleryqueue")
+    if q == nil{
+		log.Fatal("redis queue err")
 		return 
     }
-    q:= queue.NewRedisQueue(cli,"queue1")
+    filter := bloom.NewRedisBloomFilter(serverip, 1<<30, 5)
+    if filter == nil{
+    	log.Fatal("redis bloomlfilter err")
+		return 
+    }
+
 	// On every a element which has href attribute call callback
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
 		link := e.Attr("href")
@@ -36,16 +53,23 @@ func main() {
 		//fmt.Println("lnk", e.Request.AbsoluteURL(link))
 		c.Visit(e.Request.AbsoluteURL(link))
 	})
-
+    //count:=0 atmoic add
 	// Before making a request print "Visiting ..."
 	c.OnRequest(func(r *colly.Request) {
 		url := r.URL.String()
 		ret:=strings.Split(url,"/")
 	    if len(ret)>2 && ret[len(ret)-2] == "pic"{
-	    	q.Put(url)
-	        fmt.Println("success")
+            if filter.HasString(url) == false{
+            	q.Put(url)
+            	filter.PutString(url)
+	            //fmt.Println("success")
+            }else{
+            	log.Printf("duplicate:%s",url)
+            	//fmt.Println("duplicate")	
+            }
+	    	
 	    }
-		fmt.Println("Visiting", r.URL.String())
+		//fmt.Println("Visiting", r.URL.String())
 	})
 
 	// Start scraping on https://hackerspaces.org

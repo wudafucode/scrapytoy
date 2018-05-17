@@ -49,7 +49,12 @@ func HashData(data []byte, seed uint) uint {
 }
 
 
-func NewRedisBloomFilter(cli redis.Conn, n, k uint) *RedisBloomFilter {
+func NewRedisBloomFilter(ip string, n, k uint) *RedisBloomFilter {
+
+	 cli, err := redis.Dial("tcp", ip)
+     if err!= nil{
+		return nil
+     }
 	filter := &RedisBloomFilter{
 		cli:          cli,
 		Queue:  make(chan Message, 100), 
@@ -70,10 +75,10 @@ func (filter *RedisBloomFilter) queueHandler() {
 					switch m:=msg.(type){
 						case outDataMsg:
 							  
-							  filter.Put(m.data)
+							  filter.put(m.data)
 						case existDataMsg:
 							  
-							  ret:=filter.Has(m.data)
+							  ret:=filter.has(m.data)
 							  m.retChan<-ret
 					    case interface{}:
 					    	fmt.Printf("error\n\r")
@@ -86,7 +91,7 @@ func (filter *RedisBloomFilter) queueHandler() {
 
 	}
 }
-func (filter *RedisBloomFilter) Put(data []byte) {
+func (filter *RedisBloomFilter) put(data []byte) {
 	
 	for i := uint(0); i < filter.k; i++ {
 		index := HashData(data, i) % filter.n
@@ -101,7 +106,7 @@ func (filter *RedisBloomFilter) PutString(data string) {
 	filter.Queue<-outDataMsg{data:[]byte(data)}
 }
 
-func (filter *RedisBloomFilter) Has(data []byte) bool {
+func (filter *RedisBloomFilter) has(data []byte) bool {
 	for i := uint(0); i < filter.k; i++ {
 		index := HashData(data, i) % filter.n
 		value, err := redis.Int(filter.cli.Do("GETBIT", filter.redisKey(), index))
