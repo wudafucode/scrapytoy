@@ -2,9 +2,10 @@ package queue
 
 
 import(
-	"fmt"
+	//"fmt"
 	"github.com/gomodule/redigo/redis"
 	"time"
+	"log"
 )
 
 
@@ -34,26 +35,24 @@ func NewRedisQueue(ip string,queuekey string) *RedisQueue {
      return q
 }
 func (q *RedisQueue) queueHandler() {
-
-   
 	for{
 		select{
 				case _=<-q.urlCacheCount:
-					 url, err := redis.String(q.cli.Do("LPOP", q.queuekey))
+					 url, err := redis.String(q.cli.Do("RPOP", q.queuekey))
 					 if err != nil{
 					 	q.urlCacheCount<-struct{}{}
-					 	//fmt.Printf("fail\r\n")
+					 
 					 	time.Sleep(time.Millisecond*100)
 					 	continue
 					 }
 					 q.urlCache<-url
-					 fmt.Printf("get url:%s\r\n",url)
+					 //fmt.Printf("redis queue get url:%s\r\n",url)
 
 				case url:=<-q.urllist:
 
 					 _, err := q.cli.Do("RPUSH", q.queuekey,url)
 					 if err != nil{
-					 	fmt.Printf("oush url fail\r\n")
+					 	log.Printf("oush url fail\r\n")
 					 }
 
 

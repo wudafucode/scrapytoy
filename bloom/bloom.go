@@ -67,7 +67,7 @@ func NewRedisBloomFilter(ip string, n, k uint) *RedisBloomFilter {
 	return filter
 }
 func (filter *RedisBloomFilter) queueHandler() {
-	fmt.Printf("queue handler\r\n")
+	//fmt.Printf("queue handler\r\n")
 	for{
 
 		select{
