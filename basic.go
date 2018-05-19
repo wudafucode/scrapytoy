@@ -58,18 +58,37 @@ func main() {
 		//fmt.Printf("Link %s\n", e.Request.AbsoluteURL(link))
 
 		urllist=append(urllist,e.Request.AbsoluteURL(link))
-		//urllist=append(urllist,link)
+		
 		//c.Visit(e.Request.AbsoluteURL(link))
 	})
+    c.OnHTML("img[src][title]", func(e *colly.HTMLElement) {
 	
+        img_url := e.Attr("src")
+        urllist:=strings.Split(img_url,".")
+        if(urllist[len(urllist)-1]=="gif"){
+        	return 
+        }
+        //if strings.split
+	    img_name:=e.Attr("title")
+	    img_url = "https:"+img_url
+	    log.Printf("dowload url:%s,name:%s\r\n",img_url,img_name)
+        
+	    resp, err := http.Get(img_url)
+	    if err != nil{
+	    	log.Printf("url:%s",img_url)
+	    	log.Println(err)  
+	        return 
+	    }
+		body, _ := ioutil.ReadAll(resp.Body)
+		out, _ := os.Create(img_name)
+		io.Copy(out, bytes.NewReader(body))
+		
+		
+	})
     count:=0 
 	// Before making a request print "Visiting ..."
 	c.OnRequest(func(r *colly.Request) {
-		url := r.URL.String()
-		ret:=strings.Split(url,"/")
-	    if len(ret)>2 && ret[len(ret)-2] == "pic"{
-           piclist<-url
-	    }
+	
 	    count = count+1
 		fmt.Printf("total:%d,Visiting:%s;\r\n", count,r.URL.String())
 
