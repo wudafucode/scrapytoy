@@ -10,6 +10,7 @@ import (
 	"log"
 	"flag"
 	"github.com/PuerkitoBio/goquery"
+	"github.com/gomodule/redigo/redis"
 	"io"
     "io/ioutil"
     "net/http"
@@ -29,7 +30,8 @@ func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.LUTC | log.Lshortfile)
     
     urllist:=make([]string,100)
-    piclist:=make(chan string,100)
+    //piclist:=make(chan string,100)
+    countchan:=make(chan struct{},10)
 	// Instantiate default collector
 	c := colly.NewCollector(
 		
@@ -69,6 +71,8 @@ func main() {
         	return 
         }
         //if strings.split
+        countchan<-struct{}{}
+
 	    img_name:=e.Attr("title")
 	    img_url = "https:"+img_url
 	    log.Printf("dowload url:%s,name:%s\r\n",img_url,img_name)
@@ -79,6 +83,7 @@ func main() {
 	    	log.Println(err)  
 	        return 
 	    }
+	    
 		body, _ := ioutil.ReadAll(resp.Body)
 		out, _ := os.Create(img_name)
 		io.Copy(out, bytes.NewReader(body))
@@ -94,7 +99,8 @@ func main() {
 
 	})
 
-    go downloadImage(piclist)
+    //go downloadImage(piclist)
+    go redisImageCount(countchan,serverip)
 	// Start scraping on https://hackerspaces.org
 	c.Visit("https://gallerix.asia/")
 	
@@ -121,6 +127,22 @@ func main() {
 
     }
 
+}
+func redisImageCount(countchan chan struct{},ip string){
+	cli, err := redis.Dial("tcp", ip)
+    if err!= nil{
+		return 
+    }
+    for{
+        select {
+            case <-countchan:
+            	  _, err :=cli.Do("INCR", "count")
+            	  if err != nil{
+            	  	fmt.Printf("err")
+            	  }
+
+            }
+    }
 }
 func downloadImage(piclist chan string){
 	//piclist:=make(chan string,100)
